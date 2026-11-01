@@ -1,0 +1,53 @@
+{
+  "questions": [
+    {
+      "question": "How should the status card be laid out?",
+      "header": "Layout",
+      "options": [
+        {
+          "label": "Stacked (Recommended)",
+          "description": "Status label on top, big value below, supporting detail underneath. Reads well at a glance and scales down to narrow columns.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 260px; background: #fff; border: 1px solid #e3e3e8; border-radius: 10px; padding: 16px;\"><div style=\"display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6b6b76; font-weight: 600;\"><span style=\"width: 8px; height: 8px; border-radius: 50%; background: #16a34a; display: inline-block;\"></span>System status</div><div style=\"font-size: 30px; font-weight: 650; color: #16181d; margin-top: 10px; line-height: 1;\">Operational</div><div style=\"font-size: 13px; color: #6b6b76; margin-top: 8px;\">All 12 services healthy &middot; updated 2m ago</div></div></div>"
+        },
+        {
+          "label": "Split row",
+          "description": "Status and value on the left, secondary details right-aligned on the same row. Compact horizontally, good in a wide row of cards.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 340px; background: #fff; border: 1px solid #e3e3e8; border-radius: 10px; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px;\"><div><div style=\"font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6b6b76; font-weight: 600;\">System status</div><div style=\"display: flex; align-items: center; gap: 8px; margin-top: 8px;\"><span style=\"width: 10px; height: 10px; border-radius: 50%; background: #16a34a; display: inline-block;\"></span><span style=\"font-size: 22px; font-weight: 650; color: #16181d; line-height: 1;\">Operational</span></div></div><div style=\"text-align: right;\"><div style=\"font-size: 20px; font-weight: 650; color: #16181d;\">12/12</div><div style=\"font-size: 12px; color: #6b6b76; margin-top: 4px;\">services up</div></div></div></div>"
+        },
+        {
+          "label": "Metric grid",
+          "description": "Header line plus a 2x2 grid of sub-metrics. Shows the most information, but needs more vertical space.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 300px; background: #fff; border: 1px solid #e3e3e8; border-radius: 10px; padding: 16px;\"><div style=\"display: flex; align-items: center; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #eeeef2;\"><span style=\"width: 8px; height: 8px; border-radius: 50%; background: #16a34a; display: inline-block;\"></span><span style=\"font-size: 15px; font-weight: 650; color: #16181d;\">Operational</span><span style=\"font-size: 12px; color: #9a9aa6; margin-left: auto;\">2m ago</span></div><div style=\"display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;\"><div><div style=\"font-size: 18px; font-weight: 650; color: #16181d;\">12/12</div><div style=\"font-size: 11px; color: #6b6b76; margin-top: 2px;\">Services</div></div><div><div style=\"font-size: 18px; font-weight: 650; color: #16181d;\">99.9%</div><div style=\"font-size: 11px; color: #6b6b76; margin-top: 2px;\">Uptime</div></div><div><div style=\"font-size: 18px; font-weight: 650; color: #16181d;\">142ms</div><div style=\"font-size: 11px; color: #6b6b76; margin-top: 2px;\">p95 latency</div></div><div><div style=\"font-size: 18px; font-weight: 650; color: #16181d;\">0</div><div style=\"font-size: 11px; color: #6b6b76; margin-top: 2px;\">Incidents</div></div></div></div></div>"
+        },
+        {
+          "label": "Banner strip",
+          "description": "Full-width strip with a colored status bar, no card chrome. Minimal, but doesn't sit naturally alongside other cards.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 360px; background: #fff; border: 1px solid #e3e3e8; border-left: 4px solid #16a34a; border-radius: 6px; padding: 12px 14px; display: flex; align-items: center; gap: 10px;\"><span style=\"font-size: 14px; font-weight: 650; color: #16181d;\">Operational</span><span style=\"font-size: 13px; color: #6b6b76;\">&mdash; all 12 services healthy</span><span style=\"font-size: 12px; color: #9a9aa6; margin-left: auto;\">2m ago</span></div></div>"
+        }
+      ],
+      "multiSelect": false
+    },
+    {
+      "question": "How dense should the card be?",
+      "header": "Density",
+      "options": [
+        {
+          "label": "Comfortable (Recommended)",
+          "description": "Generous padding (~16-20px), larger type. Easier to scan when the dashboard has only a handful of cards.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 260px; background: #fff; border: 1px solid #e3e3e8; border-radius: 10px; padding: 20px;\"><div style=\"font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #6b6b76; font-weight: 600;\">System status</div><div style=\"font-size: 30px; font-weight: 650; color: #16181d; margin-top: 12px; line-height: 1;\">Operational</div><div style=\"font-size: 13px; color: #6b6b76; margin-top: 10px;\">12 services healthy</div></div><div style=\"font-size: 11px; color: #9a9aa6; margin-top: 8px;\">20px padding &middot; 30px value</div></div>"
+        },
+        {
+          "label": "Compact",
+          "description": "Tighter padding (~12px) and smaller type. Fits more cards above the fold without feeling cramped.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 220px; background: #fff; border: 1px solid #e3e3e8; border-radius: 8px; padding: 12px;\"><div style=\"font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6b6b76; font-weight: 600;\">System status</div><div style=\"font-size: 20px; font-weight: 650; color: #16181d; margin-top: 6px; line-height: 1;\">Operational</div><div style=\"font-size: 12px; color: #6b6b76; margin-top: 6px;\">12 services healthy</div></div><div style=\"font-size: 11px; color: #9a9aa6; margin-top: 8px;\">12px padding &middot; 20px value</div></div>"
+        },
+        {
+          "label": "Dense",
+          "description": "Minimal padding (~8px), small type, single line where possible. Best for ops-style walls of many cards.",
+          "preview": "<div style=\"font-family: -apple-system, system-ui, sans-serif; padding: 16px; background: #f5f5f7;\"><div style=\"width: 200px; background: #fff; border: 1px solid #e3e3e8; border-radius: 6px; padding: 8px 10px;\"><div style=\"display: flex; align-items: baseline; justify-content: space-between;\"><span style=\"font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #6b6b76; font-weight: 600;\">Status</span><span style=\"font-size: 11px; color: #9a9aa6;\">12/12</span></div><div style=\"font-size: 15px; font-weight: 650; color: #16181d; margin-top: 3px; line-height: 1.1;\">Operational</div></div><div style=\"font-size: 11px; color: #9a9aa6; margin-top: 8px;\">8px padding &middot; 15px value</div></div>"
+        }
+      ],
+      "multiSelect": false
+    }
+  ]
+}

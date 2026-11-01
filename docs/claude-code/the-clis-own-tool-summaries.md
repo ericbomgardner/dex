@@ -1,0 +1,17 @@
+# The CLI's own tool summaries (CLI v2.1.312, SDK 0.3.312)
+
+Probe: `Sidecar/test/tool-summary-probe.ts`. Two sessions. One with `CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES` set reads, searches, runs a failing command and edits, one reply per step. The other has `agentProgressSummaries` on and a foreground agent that works for about a minute.
+
+**`CLAUDE_CODE_EMIT_TOOL_USE_SUMMARIES` works under the SDK.** It's undocumented and turned up in the binary's strings. With any value set in the query's `env`, the stream carries `{type: "tool_use_summary", summary, preceding_tool_use_ids}`. Without it there are none.
+
+- **One per reply that made calls**, covering that reply's calls: two parallel Reads share one label, and a run of five replies gets five. Only the main thread gets them (the binary skips them when there's an `agentId`) and only for a turn that wasn't aborted.
+- **The label is a commit subject.** The prompt asks for past tense and about 30 characters, because it "appears as a single-line row in a mobile app". Measured: "Read alpha.txt and beta.txt", "Searched for needle", "Listed missing folder", "Edited gamma.swift". It reads the results too: a failed Grep came back "Grep unavailable; retried via Bash".
+- **It's late.** A side request goes out once the reply's results are in, and the label lands 1.3–2.3s after the last of them. By then the next reply has already started (0.3–0.7s earlier). A pane that drew the label would change text under a row that was already drawn.
+- **Haiku, uncached, and cheap.** The result's `modelUsage` gets a `claude-haiku-5-5` entry beyond the one the title costs on its own (1,318 tokens in the agent run), about 350 tokens in and 20 out per label, roughly $0.0001 each.
+- **Nothing reaches the transcript.** No record type, no text, and no `api-request` record for the side request (only `sdk` ones). Anything that wants the labels later has to save them itself, keyed by call id. A Terminal session, an old file or a session the host didn't run never has any.
+
+**`agentProgressSummaries`** (a query option, typed in `sdk.d.ts`) puts a `summary` on a running subagent's `task_progress`, made about every 30s by forking the agent's conversation on the agent's own model. The first came 31s into the agent. In 60s two of eight `task_progress` events had one, and both just repeated the event's own `description` ("Reading alpha.txt"), which the CLI already writes from the agent's last call without the option. For a short agent it adds nothing the description doesn't already say.
+
+Dex uses neither yet. A run of calls is phrased from the calls' own inputs instead, which works for every file, as soon as each call finishes ("Read A.swift and 2 others, searched for “atEnd”, ran swift test (failed)"). A Bash call's `description`, written by the main model, stands in for a command that is long or runs to several lines. The model writes those in the imperative ("Build and show errors"), so their verbs are put in the past to match ("built and showed errors"). Of 4,605 descriptions on this Mac on 2026-10-30, 3,632 opened on a verb the lists turn; most of the rest already read as past ("Read", "Set").
+
+Code: `RunSentence`, `PastTense`, `TranscriptToolRun.sentence`, `run_sentence` and `past_tense` in `Scripts/maintainer/transcript-render.py`. Tests: the probe, `RunSentenceTests`, `PastTenseTests`, `transcript-render-test.py` (which also checks its verb lists match the Swift ones).

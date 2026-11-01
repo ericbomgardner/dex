@@ -1,0 +1,8 @@
+{"data":{"viewer":{"assignedIssues":{"nodes":[
+  {"identifier":"ENG-412","title":"Retry webhook deliveries after a 5xx","url":"https://linear.app/acme/issue/ENG-412/retry-webhook-deliveries-after-a-5xx","state":{"name":"In Progress","type":"started"},"team":{"key":"ENG","name":"Engineering"}},
+  {"identifier":"ENG-398","title":"Rate limit the export endpoint","url":"https://linear.app/acme/issue/ENG-398/rate-limit-the-export-endpoint","state":{"name":"Todo","type":"unstarted"},"team":{"key":"ENG","name":"Engineering"}}
+]}},"issues":{"nodes":[
+  {"identifier":"DES-77","title":"New empty state for the inbox","url":"https://linear.app/acme/issue/DES-77/new-empty-state-for-the-inbox","state":{"name":"In Review","type":"started"},"team":{"key":"DES","name":"Design"}},
+  {"identifier":"ENG-412","title":"Retry webhook deliveries after a 5xx","url":"https://linear.app/acme/issue/ENG-412/retry-webhook-deliveries-after-a-5xx","state":{"name":"In Progress","type":"started"},"team":{"key":"ENG","name":"Engineering"}},
+  {"identifier":"ENG-401","title":"","url":"https://linear.app/acme/issue/ENG-401","state":{"name":"Backlog","type":"backlog"},"team":{"key":"ENG","name":"Engineering"}}
+]}}}

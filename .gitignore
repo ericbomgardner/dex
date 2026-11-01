@@ -1,0 +1,25 @@
+# SwiftPM
+.build/
+.swiftpm/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# Sidecar host (package-lock.json is committed: it pins the transitive deps
+# the SDK version pin alone does not). Both spellings: a worktree that wants the
+# deps without a second install links them, and a link is not a directory, so
+# the trailing slash walks straight past it and into a commit.
+Sidecar/node_modules
+Sidecar/node_modules/
+
+# Python
+__pycache__/
+
+# macOS
+.DS_Store
+
+# Claude Code agent worktrees
+.claude/

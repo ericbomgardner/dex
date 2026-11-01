@@ -1,0 +1,47 @@
+{
+  "name": "dex-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hosts Claude Agent SDK sessions for Dex and puts their asks on a socket.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "host": "node src/host.ts",
+    "typecheck": "tsc -p .",
+    "test": "node test/unit.ts",
+    "smoke": "node test/smoke.ts",
+    "media-dropped-probe": "node test/media-dropped-probe.ts",
+    "api-key-over-login-probe": "node test/api-key-over-login-probe.ts",
+    "system-prompt-probe": "node test/system-prompt-probe.ts",
+    "subagent-model-probe": "node test/subagent-model-probe.ts",
+    "stop-agent-probe": "node test/stop-agent-probe.ts",
+    "now-priority-probe": "node test/now-priority-probe.ts",
+    "writing-call-probe": "node test/writing-call-probe.ts",
+    "narration-stream-probe": "node test/narration-stream-probe.ts",
+    "tool-summary-probe": "node test/tool-summary-probe.ts",
+    "reap-probe": "node test/reap-probe.ts",
+    "question-answer-probe": "node test/question-answer-probe.ts",
+    "mode-dial-probe": "node test/mode-dial-probe.ts",
+    "resume-probe": "node test/resume-probe.ts",
+    "transcript-arrival-probe": "node test/transcript-arrival-probe.ts",
+    "host-death-probe": "node test/host-death-probe.ts",
+    "agent-file-probe": "node test/agent-file-probe.ts",
+    "output-style-probe": "node test/output-style-probe.ts",
+    "screen-takeover-probe": "node test/screen-takeover-probe.ts",
+    "session-state-probe": "node test/session-state-probe.ts",
+    "rename-probe": "node test/rename-probe.ts",
+    "start-name-probe": "node test/start-name-probe.ts",
+    "side-question-probe": "node test/side-question-probe.ts",
+    "mcp-reconnect-config-probe": "node test/mcp-reconnect-config-probe.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.316",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}

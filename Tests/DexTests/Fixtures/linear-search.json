@@ -1,0 +1,4 @@
+{"data":{"issues":{"nodes":[
+  {"identifier":"ENG-412","title":"Retry webhook deliveries after a 5xx","url":"https://linear.app/acme/issue/ENG-412/retry-webhook-deliveries-after-a-5xx","state":{"name":"In Progress","type":"started"},"team":{"key":"ENG","name":"Engineering"}},
+  {"identifier":"OPS-9","title":"Webhook dashboard","url":"https://linear.app/acme/issue/OPS-9/webhook-dashboard","state":{"name":"Done","type":"completed"},"team":{"key":"OPS","name":"Operations"}}
+]}}}
