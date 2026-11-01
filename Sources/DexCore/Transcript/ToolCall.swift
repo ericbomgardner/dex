@@ -14,15 +14,6 @@ public struct SubagentTotals: Sendable, Hashable {
         self.tokens = tokens
         self.duration = duration
     }
-
-    /// The one line the terminal prints for a finished agent, word for word.
-    public var summary: String {
-        [
-            toolUses == 1 ? "1 tool use" : "\(toolUses) tool uses",
-            "\(Format.compact(tokens)) tokens",
-            Format.elapsed(duration),
-        ].joined(separator: " · ")
-    }
 }
 
 public struct ToolResult: Sendable, Hashable {
@@ -293,6 +284,37 @@ public struct ToolCall: Sendable, Hashable, Identifiable {
     /// `summary` leads with — that line is what names the work.
     public var purpose: String? {
         trimmed(argument("description")) ?? summary
+    }
+
+    /// The model's own line for a shell command or an agent, which leads the
+    /// call's row ahead of the raw input. Nil for every other tool, which has none.
+    public var described: String? {
+        switch name {
+        case "Bash": argument("command") == nil ? nil : trimmed(argument("description"))
+        case "Task", "Agent": trimmed(argument("description"))
+        default: nil
+        }
+    }
+
+    /// The row's lead: the description, or the tool's name where there is none.
+    /// A running call says it as happening ("Running the tests").
+    public func heading(running: Bool) -> String {
+        guard let described else { return name }
+        return running ? Ongoing.of(described) : described
+    }
+
+    /// What follows the heading, quieter: the raw input. For an agent, whose
+    /// description is its input, the kind of agent, unless it's the default.
+    public var subheading: String? {
+        guard described != nil else { return summary }
+        guard isDelegation else { return summary }
+        let kind = trimmed(argument("subagent_type"))
+        return kind == "general-purpose" ? nil : kind
+    }
+
+    /// What the strip of running work calls it: the heading, said as happening.
+    public var runningLabel: String? {
+        described.map(Ongoing.of) ?? purpose
     }
 
     /// The same subject, whole. A command cut to its first line reads as the call

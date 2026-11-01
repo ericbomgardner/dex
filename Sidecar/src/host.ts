@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 
 import { renameSession } from "@anthropic-ai/claude-agent-sdk";
 
-import type { LaunchRequest } from "./dex-server.ts";
+import { launchEvent, launchRefusal, type LaunchRequest } from "./dex-server.ts";
 import { removeKeyFiles, sweepKeyFiles } from "./keyfile.ts";
 import { HostedSession } from "./session.ts";
 import { resolveDefaults } from "./defaults.ts";
@@ -141,10 +141,12 @@ function broadcast(event: Event): void {
  * started around them would run on bare CLI defaults.
  */
 function launch(request: LaunchRequest): Promise<string> {
-  if (!path.isAbsolute(request.cwd) || !existsSync(request.cwd)) {
-    return Promise.reject(new Error(`Not started: ${request.cwd} is not a folder on this Mac`));
-  }
   const socket = launchers.at(-1);
+  const refusal = launchRefusal(
+    request,
+    existsSync,
+  );
+  if (refusal) return Promise.reject(new Error(refusal));
   if (!socket) return Promise.reject(new Error("Not started: Dex isn't open to start it"));
   const launchId = randomUUID();
   log(`launch ${launchId} from ${request.parent} cwd=${request.cwd}`);
@@ -154,14 +156,7 @@ function launch(request: LaunchRequest): Promise<string> {
       reject(new Error("Dex didn't answer within 30s, so it may still have started; look in Dex before asking again"));
     }, LAUNCH_TIMEOUT_MS);
     launches.set(launchId, { socket, resolve, reject, timer });
-    send(socket, {
-      type: "launch",
-      launchId,
-      cwd: request.cwd,
-      prompt: request.prompt,
-      ...(request.name ? { name: request.name } : {}),
-      parent: request.parent,
-    });
+    send(socket, launchEvent(launchId, request));
   });
 }
 

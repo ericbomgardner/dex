@@ -140,7 +140,7 @@ package struct RunningStrip: View {
         VStack(alignment: .leading, spacing: ChromeMetrics.lineGap) {
             ForEach(shown) { call in
                 RunningRow(
-                    label: call.purpose ?? "agent",
+                    label: call.runningLabel ?? "agent",
                     since: call.startedAt,
                     help: open == nil
                         ? "This agent is still out — click to find its call in the conversation"
@@ -170,7 +170,7 @@ package struct RunningStrip: View {
     /// row beside it names a command that is working, and the same phrasing for
     /// both would read as two commands running.
     private static func label(for call: ToolCall) -> String {
-        guard call.isWatcher else { return call.purpose ?? call.name }
+        guard call.isWatcher else { return call.runningLabel ?? call.name }
         guard let purpose = call.purpose else { return "watching" }
         return "watching \(purpose)"
     }

@@ -89,7 +89,7 @@ package enum NativeRow: Hashable, Sendable {
             : call.wasDropped ? ToolCall.droppedNote : nil
         return .call(
             key: key, glyph: ToolGlyph.name(for: call.name), tint: tint,
-            name: call.name, summary: call.summary, note: note
+            name: call.heading(running: false), summary: call.subheading, note: note
         )
     }
 
@@ -491,7 +491,7 @@ package final class NativeHeader: NSView {
             draw(tally, font: NativeMetrics.meta, color: tertiary,
                  at: x + min(width(sentence, font: NativeMetrics.metaMedium), room) + ChromeMetrics.iconGap,
                  width: tallyWidth)
-            draw(sentence, font: NativeMetrics.metaMedium, color: secondary, at: x, width: room, truncate: .byTruncatingTail)
+            draw(sentence, font: NativeMetrics.metaMedium, color: secondary, at: x, width: room, truncate: .byTruncatingMiddle)
         case .call(let glyph, let tint, let name, let summary, let note):
             let color: NSColor = switch tint {
             case .accent: NSColor(Entry.flavor.accent)
@@ -500,7 +500,6 @@ package final class NativeHeader: NSView {
             }
             slot(glyph, color: color)
             var x = ChromeMetrics.toolGlyphSlot + ChromeMetrics.iconGap
-            x += draw(name, font: NativeMetrics.metaMedium, color: secondary, at: x, width: .infinity)
             var right = bounds.width
             if let note {
                 let noteWidth = width(note, font: NativeMetrics.meta)
@@ -508,6 +507,8 @@ package final class NativeHeader: NSView {
                 draw(note, font: NativeMetrics.meta, color: tertiary, at: right, width: noteWidth)
                 right -= ChromeMetrics.iconGap
             }
+            x += draw(name, font: NativeMetrics.metaMedium, color: secondary, at: x,
+                      width: max(0, right - x), truncate: .byTruncatingTail)
             if let summary {
                 x += ChromeMetrics.iconGap
                 draw(summary, font: NativeMetrics.mono, color: tertiary, at: x,

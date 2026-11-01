@@ -12,6 +12,12 @@ import Foundation
 enum PastTense {
 
     static func of(_ clause: String) -> String {
+        turning(clause, with: pastOf)
+    }
+
+    /// The opening verbs of `clause` put through `form`, the walk `of` and
+    /// `Ongoing.of` share.
+    static func turning(_ clause: String, with form: (String) -> String?) -> String {
         var words = clause.components(separatedBy: " ")
         for index in words.indices where index == 0 || opensClause(after: words[index - 1]) {
             var word = words[index]
@@ -21,7 +27,7 @@ enum PastTense {
                 word.removeLast()
             }
             if index > 0, mostlyNouns.contains(word.lowercased()) { continue }
-            if let turned = turned(word) { words[index] = turned + trail }
+            if let turned = turned(word, with: form) { words[index] = turned + trail }
         }
         return words.joined(separator: " ")
     }
@@ -32,11 +38,11 @@ enum PastTense {
 
     /// The word in the past, keeping its first letter's case, or nil when it
     /// isn't a verb on the list. "Re-run" turns on its last part.
-    private static func turned(_ word: String) -> String? {
+    private static func turned(_ word: String, with form: (String) -> String?) -> String? {
         let lower = word.lowercased()
-        var past = pastOf(lower)
+        var past = form(lower)
         if past == nil, let dash = lower.lastIndex(of: "-") {
-            past = pastOf(String(lower[lower.index(after: dash)...])).map { lower[...dash] + $0 }
+            past = form(String(lower[lower.index(after: dash)...])).map { lower[...dash] + $0 }
         }
         guard let past else { return nil }
         return word.first?.isUppercase == true ? past.prefix(1).uppercased() + past.dropFirst() : past

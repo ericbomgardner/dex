@@ -3,9 +3,15 @@ import SwiftUI
 
 package struct MarkdownText: View {
     let blocks: [MarkdownBlock]
+    var tint: ProseTint = .primary
 
     package init(blocks: [MarkdownBlock]) {
         self.blocks = blocks
+    }
+
+    init(blocks: [MarkdownBlock], tint: ProseTint) {
+        self.blocks = blocks
+        self.tint = tint
     }
 
     /// Prose that runs together is laid out together, since a selection can only
@@ -66,16 +72,32 @@ package struct MarkdownText: View {
     private func view(for piece: Piece) -> some View {
         switch piece {
         case .prose(let blocks):
-            ProseText(source: .markdown(blocks))
-        case .block(.code(_, let text)):
-            MonoSlab(text: text, tint: .primary)
-        case .block(.quote(let text)):
-            MarkdownQuote(text: text)
-        case .block(.table(let table)):
+            ProseText(source: .markdown(blocks), face: ProseFace(tint: tint))
+        case .block(let block):
+            let (inset, inner) = Self.unwrapped(block)
+            Self.drawn(inner, tint: tint)
+                .padding(.leading, inset)
+        }
+    }
+
+    private static func unwrapped(_ block: MarkdownBlock) -> (CGFloat, MarkdownBlock) {
+        guard case .nested(let depth, let inner) = block else { return (0, block) }
+        let (deeper, innermost) = unwrapped(inner)
+        return (ProseMarkup.inset(depth) + deeper, innermost)
+    }
+
+    @ViewBuilder
+    private static func drawn(_ block: MarkdownBlock, tint: ProseTint) -> some View {
+        switch block {
+        case .code(_, let text):
+            MonoSlab(text: text, tint: tint)
+        case .quote(let blocks):
+            MarkdownQuote(blocks: blocks)
+        case .table(let table):
             MarkdownTableView(table: table)
-        case .block(.rule):
+        case .rule:
             Divider()
-        case .block:
+        default:
             EmptyView()
         }
     }
@@ -109,16 +131,30 @@ package struct MonoSlab: View {
 }
 
 private struct MarkdownQuote: View {
-    let text: String
+    let blocks: [MarkdownBlock]
+
+    @Environment(\.proseQuoteDepth) private var depth
 
     var body: some View {
         HStack(alignment: .top, spacing: ChromeMetrics.glyphGap) {
             RoundedRectangle(cornerRadius: ChromeMetrics.promptRule / 2, style: .continuous)
                 .fill(.quaternary)
                 .frame(width: ChromeMetrics.promptRule)
-            ProseText(source: .markdown([.paragraph(text)]), face: ProseFace(tint: .secondary))
+            MarkdownText(blocks: blocks, tint: .secondary)
+                .environment(\.proseQuoteDepth, depth + 1)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct ProseQuoteDepthKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    var proseQuoteDepth: Int {
+        get { self[ProseQuoteDepthKey.self] }
+        set { self[ProseQuoteDepthKey.self] = newValue }
     }
 }
 

@@ -15,6 +15,9 @@ struct ProseFace: Hashable, Sendable {
     /// the prose around it.
     var lead: CGFloat = ChromeMetrics.readingLead
 
+    /// How many quotes the run sits inside, for a copy to mark it with `> `.
+    var quoted = 0
+
     static let code = ProseFace(
         size: ChromeType.Reading.monoSize,
         mono: true,
@@ -48,6 +51,12 @@ enum ProseSource: Hashable, Sendable {
 /// It is one string rather than a view apiece because a selection can only run
 /// through characters that share a layout — paragraph to paragraph inside a
 /// reply is a text-view selection, and everything past that is the pane's.
+extension NSAttributedString.Key {
+    /// A heading's level, set on its text so a copy can tell it from a
+    /// semibold table header without reading the font.
+    static let proseHeading = NSAttributedString.Key("DexProseHeading")
+}
+
 package enum ProseMarkup {
 
     static func attributed(_ source: ProseSource, face: ProseFace) -> NSAttributedString {
@@ -75,7 +84,14 @@ package enum ProseMarkup {
         switch block {
         case .heading, .paragraph, .list: true
         case .code, .quote, .table, .rule: false
+        case .nested(_, let inner): flows(inner)
         }
+    }
+
+    /// Where a block inside a list item starts: level with the item's text.
+    static func inset(_ depth: Int) -> CGFloat {
+        guard depth > 0 else { return 0 }
+        return CGFloat(depth - 1) * ChromeMetrics.listIndent + ChromeMetrics.bulletSlot + ChromeMetrics.iconGap
     }
 
     /// Tabs are how the bullet finds its column, and nobody wants them on the
@@ -93,7 +109,8 @@ package enum ProseMarkup {
         _ block: MarkdownBlock,
         at index: Int,
         face: ProseFace,
-        to result: NSMutableAttributedString
+        to result: NSMutableAttributedString,
+        inset: CGFloat = 0
     ) {
         switch block {
         case .heading(let level, let text):
@@ -101,18 +118,24 @@ package enum ProseMarkup {
             // rather than evenly between the paragraphs either side.
             let style = style(before: index > 0 ? ChromeMetrics.headingLead : 0,
                               after: gap(ChromeMetrics.blockGap))
+            style.firstLineHeadIndent = inset
+            style.headIndent = inset
+            let start = result.length
             result.append(inline(text, font: heading(level), tint: face.tint, style: style))
+            result.addAttribute(.proseHeading, value: level, range: NSRange(location: start, length: result.length - start))
             result.append(paragraphBreak(style))
 
         case .paragraph(let text):
             let style = style(after: gap(ChromeMetrics.blockGap))
+            style.firstLineHeadIndent = inset
+            style.headIndent = inset
             result.append(inline(text, font: font(face), tint: face.tint, style: style))
             result.append(paragraphBreak(style))
 
         case .list(let items):
             for (position, item) in items.enumerated() {
                 let last = position == items.count - 1
-                let indent = CGFloat(item.level) * ChromeMetrics.listIndent
+                let indent = inset + CGFloat(item.level) * ChromeMetrics.listIndent
                 let style = style(after: gap(last ? ChromeMetrics.blockGap : ChromeMetrics.listGap))
                 style.firstLineHeadIndent = indent
                 style.headIndent = indent + ChromeMetrics.bulletSlot + ChromeMetrics.iconGap
@@ -133,6 +156,9 @@ package enum ProseMarkup {
                 result.append(inline(item.text, font: font(face), tint: face.tint, style: style))
                 result.append(paragraphBreak(style))
             }
+
+        case .nested(let depth, let inner):
+            append(inner, at: index, face: face, to: result, inset: inset + Self.inset(depth))
 
         case .code, .quote, .table, .rule:
             break

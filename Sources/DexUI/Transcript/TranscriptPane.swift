@@ -926,7 +926,7 @@ private struct ToolRun: View {
                 .font(ChromeType.Reading.meta.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .truncationMode(.tail)
+                .truncationMode(.middle)
 
             Text(NativeRow.tally(count: run.calls.count, pending: run.isPending))
                 .font(ChromeType.Reading.meta)
@@ -1284,7 +1284,7 @@ struct ToolCallRow: View {
                 }
             } label: { header }
                 .buttonStyle(.plain)
-                .selectableWhole([call.name, call.summary].compactMap { $0 }.joined(separator: " "))
+                .selectableWhole([call.heading(running: isRunning), call.subheading].compactMap { $0 }.joined(separator: " "))
                 .selectionIndex(0)
 
             if isExpanded { detail }
@@ -1354,12 +1354,15 @@ struct ToolCallRow: View {
         HStack(alignment: .firstTextBaseline, spacing: ChromeMetrics.iconGap) {
             glyph
 
-            Text(call.name)
+            Text(call.heading(running: isRunning))
                 .font(ChromeType.Reading.meta.weight(.medium))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(1)
 
-            if let summary = call.summary {
-                Text(summary)
+            if let subheading = call.subheading {
+                Text(subheading)
                     .font(ChromeType.Reading.mono)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
@@ -1382,15 +1385,15 @@ struct ToolCallRow: View {
         .contentShape(Rectangle())
     }
 
-    /// What the terminal keeps at the right of the line, plus what it doesn't:
-    /// how long a call has been going, what a subagent's whole run came to once
-    /// it is back, and — ahead of both — which model the agent ran on. An agent
-    /// that reported nothing still says how long it was gone.
+    /// How long a call has been going, or was gone, and for an agent which
+    /// model it ran on and what its context came to.
+    ///
+    /// The CLI's tool and token counts are left off: its token figure is the
+    /// agent's last context plus one reply, the ctx term again.
     ///
     /// The model leads rather than trails because it is the term that answers a
-    /// question you can't answer any other way. The counts are the CLI's own
-    /// account of the work; the model is the app's only reading of whether the
-    /// floor it set at launch actually held.
+    /// question you can't answer any other way: the app's only reading of
+    /// whether the floor it set at launch actually held.
     private var tally: some View {
         HStack(alignment: .firstTextBaseline, spacing: ChromeMetrics.iconGap) {
             if let identity { note(identity.summary) }
@@ -1416,7 +1419,7 @@ struct ToolCallRow: View {
         } else if call.wasDropped {
             note(ToolCall.droppedNote)
         } else if let totals = call.result?.subagent {
-            note(totals.summary)
+            note(Format.elapsed(totals.duration))
         } else if call.isDelegation, let took = call.took {
             note(Format.elapsed(took))
         } else if call.isPending {

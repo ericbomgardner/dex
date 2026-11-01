@@ -33,21 +33,26 @@ extension SessionStore {
     /// start it, but left in the list rather than opened: you are reading
     /// something else, and the session that asked may start several.
     func launchRequested(_ request: HostLaunch) {
+        let target: HostSessions = host
         // Default resolves per folder, and the composer only ever asked about its own.
-        let fresh = host.defaults(for: request.cwd) == nil
-        if fresh { host.resolveDefaults(cwd: request.cwd) }
+        let fresh = target.defaults(for: request.cwd) == nil
+        if fresh { target.resolveDefaults(cwd: request.cwd) }
         Task { [weak self] in
             for _ in 0..<40 where fresh {
-                guard let self, self.host.defaults(for: request.cwd) == nil else { break }
+                guard self != nil, target.defaults(for: request.cwd) == nil else { break }
                 try? await Task.sleep(for: .milliseconds(50))
             }
-            self?.startLaunch(request)
+            self?.startLaunch(
+                request, through: target
+            )
         }
     }
 
-    private func startLaunch(_ request: HostLaunch) {
-        let launch = launchSettings(defaults: host.defaults(for: request.cwd))
-        let started = host.dispatch(
+    private func startLaunch(
+        _ request: HostLaunch, through target: HostSessions
+    ) {
+        let launch = launchSettings(defaults: target.defaults(for: request.cwd))
+        let started = target.dispatch(
             cwd: request.cwd,
             prompt: request.prompt,
             model: launch.model,
@@ -70,7 +75,7 @@ extension SessionStore {
             }
         )
         if !started {
-            host.answerLaunch(request.launchId, error: host.unavailable ?? "the host is not running")
+            host.answerLaunch(request.launchId, error: target.unavailable ?? "the host is not running")
         }
     }
 

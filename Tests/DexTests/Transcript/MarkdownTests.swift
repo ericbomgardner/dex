@@ -141,6 +141,145 @@ final class MarkdownTests: XCTestCase {
         XCTAssertEqual(list?.map(\.marker), [nil, nil, nil])
     }
 
+    func testACodeBlockIndentedUnderAnItemStaysACodeBlock() {
+        let text = """
+            1. Open a terminal.
+            2. Clone the project and build it:
+               ```
+               git clone https://example.com/notes.git
+               cd notes
+               make && make test
+               ```
+            3. Open the built app.
+            """
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([
+                MarkdownListItem(level: 0, marker: "1.", text: "Open a terminal."),
+                MarkdownListItem(level: 0, marker: "2.", text: "Clone the project and build it:"),
+            ]),
+            .nested(depth: 1, .code(language: nil, text: """
+                git clone https://example.com/notes.git
+                cd notes
+                make && make test
+                """)),
+            .list([MarkdownListItem(level: 0, marker: "3.", text: "Open the built app.")]),
+        ])
+    }
+
+    func testInlineCodeStartingAContinuationLineIsNoFence() {
+        let blocks = Markdown.blocks(in: "- Build it\n  ```swift build``` should pass\n\nMore prose.")
+        XCTAssertEqual(blocks, [
+            .list([MarkdownListItem(level: 0, marker: nil, text: "Build it ```swift build``` should pass")]),
+            .paragraph("More prose."),
+        ])
+    }
+
+    func testASecondParagraphStaysInsideItsItem() {
+        let text = """
+            1. **Plan mode.** Read-only until you approve.
+
+               It also keeps the plan on file.
+            2. **Auto mode.** Runs without asking.
+
+            After the list.
+            """
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([MarkdownListItem(level: 0, marker: "1.", text: "**Plan mode.** Read-only until you approve.")]),
+            .nested(depth: 1, .paragraph("It also keeps the plan on file.")),
+            .list([MarkdownListItem(level: 0, marker: "2.", text: "**Auto mode.** Runs without asking.")]),
+            .paragraph("After the list."),
+        ])
+    }
+
+    func testAQuoteInsideAnItemStaysInsideIt() {
+        let text = """
+            2. **Fix the rule.** What's there now is narrow:
+
+               > Don't hardcode values.
+            3. Then the next thing.
+            """
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([MarkdownListItem(level: 0, marker: "2.", text: "**Fix the rule.** What's there now is narrow:")]),
+            .nested(depth: 1, .quote([.paragraph("Don't hardcode values.")])),
+            .list([MarkdownListItem(level: 0, marker: "3.", text: "Then the next thing.")]),
+        ])
+    }
+
+    func testANestedItemKeepsItsOwnCode() {
+        let text = """
+            - outer
+              - inner
+                ```
+                make
+                ```
+            - next
+            """
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([
+                MarkdownListItem(level: 0, marker: nil, text: "outer"),
+                MarkdownListItem(level: 1, marker: nil, text: "inner"),
+            ]),
+            .nested(depth: 2, .code(language: nil, text: "make")),
+            .list([MarkdownListItem(level: 0, marker: nil, text: "next")]),
+        ])
+    }
+
+    func testABulletInsideAnItemsCodeIsCode() {
+        let text = "- run:\n  ```\n  - not an item\n  ```\n- next"
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([MarkdownListItem(level: 0, marker: nil, text: "run:")]),
+            .nested(depth: 1, .code(language: nil, text: "- not an item")),
+            .list([MarkdownListItem(level: 0, marker: nil, text: "next")]),
+        ])
+    }
+
+    func testAListAndCodeInsideAQuote() {
+        let text = "> You said:\n>\n> 1. first\n> 2. second\n>\n> ```\n> swift test\n> ```"
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .quote([
+                .paragraph("You said:"),
+                .list([
+                    MarkdownListItem(level: 0, marker: "1.", text: "first"),
+                    MarkdownListItem(level: 0, marker: "2.", text: "second"),
+                ]),
+                .code(language: nil, text: "swift test"),
+            ]),
+        ])
+    }
+
+    func testAnUnindentedParagraphAfterABlankLineEndsTheList() {
+        XCTAssertEqual(Markdown.blocks(in: "- one\n\nafter"), [
+            .list([MarkdownListItem(level: 0, marker: nil, text: "one")]),
+            .paragraph("after"),
+        ])
+    }
+
+    func testAParentsCodeAfterItsSubItemStaysWithTheParent() {
+        let text = "1. Install\n   - run x\n\n   ```bash\n   cmd\n   ```\n\n   More about step one.\n2. Next"
+        XCTAssertEqual(Markdown.blocks(in: text), [
+            .list([
+                MarkdownListItem(level: 0, marker: "1.", text: "Install"),
+                MarkdownListItem(level: 1, marker: nil, text: "run x"),
+            ]),
+            .nested(depth: 1, .code(language: "bash", text: "cmd")),
+            .nested(depth: 1, .paragraph("More about step one.")),
+            .list([MarkdownListItem(level: 0, marker: "2.", text: "Next")]),
+        ])
+    }
+
+    func testARunOfQuoteMarksStopsNesting() {
+        let blocks = Markdown.blocks(in: String(repeating: ">", count: 5_000) + " deep")
+        var depth = 0
+        var block = blocks.first
+        while case .quote(let inner) = block {
+            depth += 1
+            block = inner.first
+        }
+        XCTAssertEqual(depth, 8)
+        guard case .paragraph(let rest) = block else { return XCTFail("\(String(describing: block))") }
+        XCTAssertTrue(rest.hasSuffix("> deep"))
+    }
+
     func testNumberedItemsKeepTheirMarker() {
         let list = items(Markdown.blocks(in: "1. first\n2) second").first)
         XCTAssertEqual(list?.map(\.marker), ["1.", "2."])
@@ -210,26 +349,24 @@ final class MarkdownTests: XCTestCase {
     // Quotes
 
     func testQuotedLinesJoinIntoOneBlock() {
-        XCTAssertEqual(Markdown.blocks(in: "> one\n> two"), [.quote("one two")])
+        XCTAssertEqual(Markdown.blocks(in: "> one\n> two"), [.quote([.paragraph("one two")])])
     }
 
-    /// The one place a blank line reaches the join, since an unquoted one ends
-    /// the quote before it gets there.
-    func testABlankQuotedLineKeepsTheBreak() {
-        XCTAssertEqual(Markdown.blocks(in: "> one\n>\n> two"), [.quote("one\ntwo")])
+    func testABlankQuotedLineStartsAParagraphInsideTheQuote() {
+        XCTAssertEqual(Markdown.blocks(in: "> one\n>\n> two"), [.quote([.paragraph("one"), .paragraph("two")])])
     }
 
     /// The `>` is found by trimming the line, which would take the two spaces
     /// asking for the break with it — so a quote would join what a paragraph
     /// spelt the same way keeps apart.
     func testAQuoteKeepsAHardBreakTheSameWayProseDoes() {
-        XCTAssertEqual(Markdown.blocks(in: "> one  \n> two"), [.quote("one\ntwo")])
-        XCTAssertEqual(Markdown.blocks(in: "> one\\\n> two"), [.quote("one\ntwo")])
+        XCTAssertEqual(Markdown.blocks(in: "> one  \n> two"), [.quote([.paragraph("one\ntwo")])])
+        XCTAssertEqual(Markdown.blocks(in: "> one\\\n> two"), [.quote([.paragraph("one\ntwo")])])
     }
 
     func testAQuoteEndsAtUnquotedProse() {
         let blocks = Markdown.blocks(in: "> quoted\nplain")
-        XCTAssertEqual(blocks.first, .quote("quoted"))
+        XCTAssertEqual(blocks.first, .quote([.paragraph("quoted")]))
         XCTAssertEqual(paragraph(blocks.last), "plain")
     }
 

@@ -18,6 +18,7 @@ struct ProseText: NSViewRepresentable {
     var cell: SelectionCell?
 
     @Environment(\.selectionPath) private var path
+    @Environment(\.proseQuoteDepth) private var quoteDepth
     @Environment(\.transcriptSelection) private var selection
 
     func makeNSView(context: Context) -> ProseView {
@@ -56,6 +57,8 @@ struct ProseText: NSViewRepresentable {
     }
 
     private func settle(_ view: ProseView) {
+        var face = face
+        face.quoted = quoteDepth
         view.show(source, face: face)
         view.selectionCell = cell
         view.attach(to: selection, at: path)
@@ -69,6 +72,10 @@ struct ProseText: NSViewRepresentable {
 package final class ProseView: SelectionSurface, SelectionRegion {
 
     private let storage = NSTextStorage()
+
+    /// What was set, before the storage fixed its attributes: it gives each
+    /// paragraph break a font, which is how a copy tells the paragraphs apart.
+    private var drawn = NSAttributedString()
     private let typesetter = NSLayoutManager()
     private let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
 
@@ -76,6 +83,8 @@ package final class ProseView: SelectionSurface, SelectionRegion {
     /// reparse and re-typeset prose that hasn't moved.
     private var typeset: Int?
     private var mono = false
+    private var markdown = false
+    private var quoted = 0
 
     private var selected: Range<Int>?
     private var dragged = false
@@ -99,6 +108,8 @@ package final class ProseView: SelectionSurface, SelectionRegion {
 
     func show(_ source: ProseSource, face: ProseFace) {
         mono = face.mono
+        quoted = face.quoted
+        if case .markdown = source { markdown = true } else { markdown = false }
         var hasher = Hasher()
         hasher.combine(source)
         hasher.combine(face)
@@ -106,7 +117,8 @@ package final class ProseView: SelectionSurface, SelectionRegion {
         guard key != typeset else { return }
 
         typeset = key
-        storage.setAttributedString(Self.parsed(source, face: face, key: key))
+        drawn = Self.parsed(source, face: face, key: key)
+        storage.setAttributedString(drawn)
         setAccessibilityValue(storage.string)
         invalidateIntrinsicContentSize()
         needsDisplay = true
@@ -227,10 +239,27 @@ package final class ProseView: SelectionSurface, SelectionRegion {
         ProseMarkup.plain((storage.string as NSString).substring(with: clamped(range)))
     }
 
+    /// Alone, a slab of code or a stretch of one paragraph is its characters;
+    /// with anything else, code is fenced and prose keeps its markup.
+    func selectionMarkdown(in range: Range<Int>, alone: Bool) -> String {
+        let raw = selectionText(in: range)
+        if alone, mono || !markdown || !raw.trimmingCharacters(in: .newlines).contains("\n") { return raw }
+        let markup = if mono {
+            SelectionMarkdown.fenced(raw)
+        } else if markdown {
+            SelectionMarkdown.fragment(drawn.attributedSubstring(from: clamped(range)))
+        } else {
+            raw
+        }
+        return SelectionMarkdown.quoted(markup, depth: quoted)
+    }
+
     /// A slab of code goes as one preformatted block; prose goes by its attributes.
     func selectionHTML(in range: Range<Int>) -> String {
-        let piece = storage.attributedSubstring(from: clamped(range))
-        return mono ? SelectionHTML.preformatted(piece.string) : SelectionHTML.fragment(piece)
+        let piece = drawn.attributedSubstring(from: clamped(range))
+        let html = mono ? SelectionHTML.preformatted(piece.string) : SelectionHTML.fragment(piece)
+        guard !html.isEmpty else { return html }
+        return String(repeating: "<blockquote>", count: quoted) + html + String(repeating: "</blockquote>", count: quoted)
     }
 
     private func clamped(_ range: Range<Int>) -> NSRange {

@@ -13,4 +13,4 @@ The app starts it through `SessionStore.launchRequested`, with the composer's pi
 
 A spawned row shows "↳ <parent title>" and clicking it focuses the parent. The origin is kept in `HostedArchive`, so it survives a resume.
 
-Code: `dexServer`, `START_SESSION_TOOL` (`dex-server.ts`), `launch`/`settleLaunch` (`host.ts`), `HostLaunch`, `HostRequest.launched`, `SessionOrigin.parent`. Tests: `HostProtocolTests`.
+Code: `dexServer`, `START_SESSION_TOOL` (`dex-server.ts`), `launch`/`settleLaunch` (`host.ts`), `HostLaunch`, `HostRequest.launched`, `SessionOrigin.parent`. Tests: `HostProtocolTests`, `Sidecar/test/unit/launch.test.ts`.

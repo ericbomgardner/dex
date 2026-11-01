@@ -75,4 +75,8 @@ final class SelectionHTMLTests: XCTestCase {
         XCTAssertTrue(out.contains("<p>a</p>\n<pre>b</pre>"), out)
         XCTAssertTrue(out.hasSuffix("</body></html>"), out)
     }
+
+    func testANumberedListPickedUpAfterABlockKeepsItsNumber() {
+        XCTAssertEqual(html("3. third\n4. fourth"), "<ol start=\"3\"><li>third</li><li>fourth</li></ol>")
+    }
 }

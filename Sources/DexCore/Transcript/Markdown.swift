@@ -33,25 +33,39 @@ public struct MarkdownTable: Sendable, Hashable {
 /// One piece of a reply, split so the view can lay each kind out on its own.
 /// Text inside a block keeps its inline markup — `Text` understands that much
 /// already, and this parser has no business rewriting it.
-public enum MarkdownBlock: Sendable, Hashable {
+public indirect enum MarkdownBlock: Sendable, Hashable {
     case heading(level: Int, text: String)
     case paragraph(String)
     case list([MarkdownListItem])
     case code(language: String?, text: String)
-    case quote(String)
+    case quote([MarkdownBlock])
     case table(MarkdownTable)
     case rule
+    /// A block inside a list item: a second paragraph, a slab of code, a
+    /// quote. The list is ended before it and picked up after it, so nesting
+    /// is one level of inset rather than a tree; `depth` is the item's level
+    /// plus one.
+    case nested(depth: Int, MarkdownBlock)
 }
 
 public enum Markdown {
     public static func blocks(in text: String) -> [MarkdownBlock] {
-        var parser = Parser(lines: text.components(separatedBy: "\n"))
+        blocks(in: text, depth: 0)
+    }
+
+    fileprivate static func blocks(in text: String, depth: Int) -> [MarkdownBlock] {
+        var parser = Parser(lines: text.components(separatedBy: "\n"), depth: depth)
         return parser.run()
     }
 }
 
 private struct Parser {
     let lines: [String]
+    /// How many quotes and items this sits inside. Past `deepest` a quote is
+    /// left as text: `>` runs into the thousands in a pasted separator, and
+    /// each one would be a frame on the stack.
+    let depth: Int
+    static let deepest = 8
     var index = 0
     var blocks: [MarkdownBlock] = []
 
@@ -69,7 +83,7 @@ private struct Parser {
             } else if isRule(line) {
                 blocks.append(.rule)
                 index += 1
-            } else if line.trimmingCharacters(in: .whitespaces).hasPrefix(">") {
+            } else if depth < Self.deepest, line.trimmingCharacters(in: .whitespaces).hasPrefix(">") {
                 takeQuote()
             } else if let table = takeTable() {
                 blocks.append(.table(table))
@@ -108,7 +122,7 @@ private struct Parser {
             body.append(content)
             index += 1
         }
-        blocks.append(.quote(Self.flowed(body)))
+        blocks.append(.quote(Markdown.blocks(in: body.joined(separator: "\n"), depth: depth + 1)))
     }
 
     private mutating func takeTable() -> MarkdownTable? {
@@ -129,40 +143,95 @@ private struct Parser {
     /// and folding each line in as it arrives loses the trailing spaces that say
     /// so.
     private mutating func takeList() {
-        var items: [(level: Int, marker: String?, lines: [String])] = []
+        var items: [(level: Int, marker: String?, column: Int, lines: [String])] = []
         var indents: [Int] = []
+        var columns: [Int] = []
+
+        /// The deepest open item a line at this width lines up with.
+        func holder(_ width: Int) -> Int? {
+            columns.lastIndex { $0 <= width }
+        }
+
+        func flush() {
+            guard !items.isEmpty else { return }
+            blocks.append(.list(items.map {
+                MarkdownListItem(level: $0.level, marker: $0.marker, text: Self.flowed($0.lines))
+            }))
+            items = []
+        }
 
         while index < lines.count {
             let line = lines[index]
 
             if blank(line) {
-                guard index + 1 < lines.count, Bullet(lines[index + 1]) != nil else { break }
-                index += 1
+                guard let next = lines[(index + 1)...].firstIndex(where: { !blank($0) }) else { break }
+                if Bullet(lines[next]) != nil {
+                    index = next
+                    continue
+                }
+                guard depth < Self.deepest, let level = holder(Self.leadingWidth(lines[next])) else { break }
+                index = next
+                flush()
+                takeInner(depth: level + 1, column: columns[level], above: indents[level])
                 continue
             }
 
             if let bullet = Bullet(line) {
-                while let deepest = indents.last, bullet.indent < deepest { indents.removeLast() }
-                if indents.last.map({ bullet.indent > $0 }) ?? true { indents.append(bullet.indent) }
+                while let deepest = indents.last, bullet.indent < deepest {
+                    indents.removeLast()
+                    columns.removeLast()
+                }
+                if indents.last.map({ bullet.indent > $0 }) ?? true {
+                    indents.append(bullet.indent)
+                    columns.append(bullet.column)
+                }
+                columns[columns.count - 1] = bullet.column
                 items.append(
-                    (level: max(0, indents.count - 1), marker: bullet.marker, lines: [bullet.text])
+                    (level: max(0, indents.count - 1), marker: bullet.marker, column: bullet.column, lines: [bullet.text])
                 )
                 index += 1
                 continue
             }
 
+            if Fence(line) != nil || line.trimmingCharacters(in: .whitespaces).hasPrefix(">") {
+                guard depth < Self.deepest, let level = holder(Self.leadingWidth(line)) else { break }
+                flush()
+                takeInner(depth: level + 1, column: columns[level], above: indents[level])
+                continue
+            }
             guard !items.isEmpty, Self.leadingWidth(line) > (indents.last ?? 0) else { break }
             items[items.count - 1].lines.append(line)
             index += 1
         }
+        flush()
+    }
 
-        blocks.append(
-            .list(
-                items.map {
-                    MarkdownListItem(level: $0.level, marker: $0.marker, text: Self.flowed($0.lines))
-                }
-            )
-        )
+    /// What an item holds past its own lines, read as blocks of their own: a
+    /// block starts level with the item's text, a wrapped line only has to be
+    /// indented past the bullet, and a bullet outside a fence ends it.
+    private mutating func takeInner(depth: Int, column: Int, above bulletIndent: Int) {
+        let undent = column
+        var body: [String] = []
+        var fence: Fence?
+        while index < lines.count {
+            let line = lines[index]
+            if let open = fence {
+                if open.closes(line) { fence = nil }
+            } else if blank(line) {
+                guard let next = lines[(index + 1)...].firstIndex(where: { !blank($0) }),
+                      Self.leadingWidth(lines[next]) >= column, Bullet(lines[next]) == nil
+                else { break }
+            } else if Bullet(line) != nil || Self.leadingWidth(line) <= bulletIndent {
+                break
+            } else if let opened = Fence(line) {
+                fence = opened
+            }
+            body.append(Self.dropped(undent, from: line))
+            index += 1
+        }
+        for block in Markdown.blocks(in: body.joined(separator: "\n"), depth: self.depth + 1) {
+            blocks.append(.nested(depth: depth, block))
+        }
     }
 
     private mutating func takeParagraph() {
@@ -277,6 +346,16 @@ private struct Parser {
         return row + Array(repeating: "", count: width - row.count)
     }
 
+    private static func dropped(_ width: Int, from line: String) -> String {
+        var dropped = 0
+        var rest = Substring(line)
+        while dropped < width, let character = rest.first, character == " " || character == "\t" {
+            dropped += character == "\t" ? 4 : 1
+            rest = rest.dropFirst()
+        }
+        return String(rest)
+    }
+
     private static func leadingWidth(_ line: String) -> Int {
         var width = 0
         for character in line {
@@ -305,6 +384,8 @@ private struct Fence {
         guard run >= 3 else { return nil }
 
         let info = rest.dropFirst(run).trimmingCharacters(in: .whitespaces)
+        // Inline code that happens to start a line: "```x``` and more".
+        if opener == "`", info.contains("`") { return nil }
         self.character = opener
         self.length = run
         self.indent = indent
@@ -332,6 +413,9 @@ private struct Bullet {
     let indent: Int
     let marker: String?
     let text: String
+    /// Where the item's text starts, which is where anything it holds lines up.
+    /// Past four spaces the text is code and the column is one past the marker.
+    let column: Int
 
     init?(_ line: String) {
         var indent = 0
@@ -345,6 +429,7 @@ private struct Bullet {
             self.indent = indent
             self.marker = nil
             self.text = String(rest.dropFirst().drop { $0 == " " })
+            self.column = Self.column(indent + 1, rest.dropFirst())
             return
         }
 
@@ -358,5 +443,11 @@ private struct Bullet {
         self.indent = indent
         self.marker = "\(digits)."
         self.text = String(after.dropFirst().drop { $0 == " " })
+        self.column = Self.column(indent + digits.count + 1, after.dropFirst())
+    }
+
+    private static func column(_ marker: Int, _ rest: Substring) -> Int {
+        let spaces = rest.prefix { $0 == " " }.count
+        return marker + (spaces > 4 || spaces == rest.count ? 1 : spaces)
     }
 }

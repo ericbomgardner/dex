@@ -153,16 +153,28 @@ enum SelectionProbe {
         drag(from: end, to: start, in: staged)
         let backwards = staged.selection.selectedText() ?? ""
 
-        let parts = forwards.components(separatedBy: "\n\n")
-        let head = ProseMarkup.plain(text(of: opening))
-        let tail = ProseMarkup.plain(text(of: closing))
+        // Copied as markdown: the drag starts part way into the heading, so
+        // the first piece is "## " and the end of it, then the rest of the
+        // reply as it was written.
+        let heading = "Reading the transcript"
+        let restOfTheFirst = "\n\nThe pane draws a reply as blocks, and every block used to be a view of "
+            + "its own with a selection of its own.\n\n- one paragraph at a time\n- and never past the end of it"
+        let slab = "\n\n```\n" + code + "\n```"
+        let grid = "\n\n" + table + "\n\n"
 
-        let shaped = parts.count == 4
-        let takesTheTailOfTheFirst = shaped && !parts[0].isEmpty && head.hasSuffix(parts[0])
-            && parts[0].count < head.count
-        let takesTheSlabWhole = shaped && parts[1] == code
-        let takesTheGridWhole = shaped && parts[2] == table
-        let takesTheHeadOfTheLast = shaped && !parts[3].isEmpty && tail.hasPrefix(parts[3])
+        let pieces = [restOfTheFirst, slab, grid].map { forwards.range(of: $0) }
+        let parts = pieces.compactMap { $0 }.count
+        let ordered = parts == 3 && zip(pieces, pieces.dropFirst()).allSatisfy { $0!.upperBound == $1!.lowerBound }
+        let headTaken = pieces[0].map { String(forwards[..<$0.lowerBound]) } ?? ""
+        let tailTaken = pieces[2].map { String(forwards[$0.upperBound...]) } ?? ""
+
+        let takesTheTailOfTheFirst = ordered && headTaken.hasPrefix("## ")
+            && headTaken.count > 3 && heading.hasSuffix(headTaken.dropFirst(3))
+            && headTaken.count - 3 < heading.count
+        let takesTheSlabWhole = ordered
+        let takesTheGridWhole = ordered
+        let takesTheHeadOfTheLast = ordered && !tailTaken.isEmpty && Self.closing.hasPrefix(tailTaken)
+            && tailTaken.count < Self.closing.count
         let heldEitherWay = forwards == backwards
 
         let held = takesTheTailOfTheFirst && takesTheSlabWhole && takesTheGridWhole
@@ -170,7 +182,7 @@ enum SelectionProbe {
 
         return ([
             "took": forwards,
-            "pieces": parts.count,
+            "pieces": parts,
             "takesTheTailOfTheFirst": takesTheTailOfTheFirst,
             "takesTheSlabWhole": takesTheSlabWhole,
             "takesTheGridWhole": takesTheGridWhole,
@@ -576,7 +588,10 @@ enum SelectionProbe {
         let took = self.key(key, in: staged.window)
         let landed = staged.pasteboard.string(forType: .string)
         let html = staged.pasteboard.string(forType: .html) ?? ""
-        let formatted = ["<b>", "<pre>", "<table>"].allSatisfy { html.contains($0) }
+        // The paragraphs and the list come apart only if the copy reads the
+        // breaks as set, not as the text storage refonted them.
+        let formatted = ["<b>", "<pre>", "<table>", "</p>\n<p>The pane", "<ul><li>one paragraph"]
+            .allSatisfy { html.contains($0) }
         let held = took && landed == staged.selection.selectedText() && formatted
 
         return (["taken": took, "onTheClipboard": landed?.count ?? 0, "html": html.count, "formatted": formatted, "held": held], held)

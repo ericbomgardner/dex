@@ -296,18 +296,44 @@ final class ToolCallTests: XCTestCase {
         XCTAssertFalse(call("Bash", [:]).isDelegation)
     }
 
-    func testWhatASubagentDidReadsAsOneLine() {
-        let totals = SubagentTotals(toolUses: 12, tokens: 37_449, duration: 64)
-        XCTAssertEqual(totals.summary, "12 tool uses · 37.4k tokens · 1m 4s")
-    }
-
-    func testOneToolUseIsNotPluralised() {
-        let totals = SubagentTotals(toolUses: 1, tokens: 900, duration: 3)
-        XCTAssertEqual(totals.summary, "1 tool use · 900 tokens · 3s")
-    }
-
     func testAToolThatIsNotAQuestionAsksNothing() {
         XCTAssertTrue(call("Bash", ["command": .string("ls")]).askedQuestions.isEmpty)
         XCTAssertFalse(call("Bash", ["command": .string("ls")]).isQuestion)
+    }
+
+    func testADescribedCommandLeadsWithItsDescription() {
+        let test = call("Bash", ["command": .string("swift test"), "description": .string("Run the test suite")])
+        XCTAssertEqual(test.heading(running: false), "Run the test suite")
+        XCTAssertEqual(test.heading(running: true), "Running the test suite")
+        XCTAssertEqual(test.subheading, "swift test")
+    }
+
+    func testACallWithNoDescriptionLeadsWithItsTool() {
+        let read = call("Read", ["file_path": .string("/x/A.swift")])
+        XCTAssertEqual(read.heading(running: true), "Read")
+        XCTAssertEqual(read.subheading, read.summary)
+        let bare = call("Bash", ["command": .string("ls")])
+        XCTAssertEqual(bare.heading(running: false), "Bash")
+        XCTAssertEqual(bare.subheading, "ls")
+    }
+
+    func testAnAgentLeadsWithItsBriefAndNamesItsKind() {
+        let agent = call("Agent", ["description": .string("Audit the export"), "subagent_type": .string("Explore")])
+        XCTAssertEqual(agent.heading(running: true), "Auditing the export")
+        XCTAssertEqual(agent.subheading, "Explore")
+    }
+
+    func testTheDefaultKindOfAgentGoesUnnamed() {
+        let agent = call("Agent", ["description": .string("Audit the export"), "subagent_type": .string("general-purpose")])
+        XCTAssertNil(agent.subheading)
+    }
+
+    func testTheRunningStripSaysWhatTheRowSaysWhileItRuns() {
+        let agent = call("Agent", ["description": .string("Audit the export")])
+        XCTAssertEqual(agent.runningLabel, agent.heading(running: true))
+        let shell = call("Bash", ["command": .string("swift test"), "description": .string("Run the tests")])
+        XCTAssertEqual(shell.runningLabel, "Running the tests")
+        let bare = call("Bash", ["command": .string("swift test")])
+        XCTAssertEqual(bare.runningLabel, bare.purpose)
     }
 }

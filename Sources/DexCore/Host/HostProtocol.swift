@@ -594,7 +594,9 @@ public struct HostLaunch: Decodable, Hashable, Sendable {
     /// The asking session's key.
     public let parent: String
 
-    public init(launchId: String, cwd: String, prompt: String, name: String? = nil, parent: String) {
+    public init(
+        launchId: String, cwd: String, prompt: String, name: String? = nil, parent: String
+    ) {
         self.launchId = launchId
         self.cwd = cwd
         self.prompt = prompt

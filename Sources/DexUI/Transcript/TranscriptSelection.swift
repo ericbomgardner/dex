@@ -18,6 +18,11 @@ protocol SelectionRegion: AnyObject {
     /// The same range for the apps that read HTML off the clipboard.
     func selectionHTML(in range: Range<Int>) -> String
 
+    /// The same range as markdown. Copied `alone` it can be the characters
+    /// alone, so a command or a path pasted into a terminal comes without
+    /// fences or backticks.
+    func selectionMarkdown(in range: Range<Int>, alone: Bool) -> String
+
     /// Where in the text a point lands, in this piece's own coordinates.
     func selectionIndex(at point: CGPoint) -> Int
 
@@ -31,6 +36,10 @@ extension SelectionRegion {
 
     func selectionHTML(in range: Range<Int>) -> String {
         SelectionHTML.fragment(plain: selectionText(in: range))
+    }
+
+    func selectionMarkdown(in range: Range<Int>, alone: Bool) -> String {
+        selectionText(in: range)
     }
 }
 
@@ -202,9 +211,11 @@ package final class TranscriptSelection {
 
     package func selectedText() -> String? {
         guard let span, !span.isEmpty else { return nil }
-        let pieces = taken(in: span).compactMap { taken -> String? in
+        let taken = taken(in: span)
+        let alone = taken.count == 1
+        let pieces = taken.compactMap { taken -> String? in
             let text = switch taken {
-            case .piece(let region, let range): region.selectionText(in: range)
+            case .piece(let region, let range): region.selectionMarkdown(in: range, alone: alone)
             case .table(let table): table.markdown
             }
             return text.isEmpty ? nil : text

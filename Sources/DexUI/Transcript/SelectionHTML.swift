@@ -52,7 +52,7 @@ enum SelectionHTML {
             .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
-    private struct Run {
+    struct Run {
         var text: String
         let attributes: [NSAttributedString.Key: Any]
     }
@@ -60,12 +60,13 @@ enum SelectionHTML {
     private struct Item {
         let level: Int
         let ordered: Bool
+        var start: Int?
         let html: String
     }
 
     /// A paragraph break is the one newline drawn with no font on it; a newline
     /// inside a paragraph keeps the paragraph's font and reads as a hard break.
-    private static func paragraphs(of text: NSAttributedString) -> [[Run]] {
+    static func paragraphs(of text: NSAttributedString) -> [[Run]] {
         var out: [[Run]] = [[]]
         let whole = text.string as NSString
         text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { attributes, range, _ in
@@ -79,10 +80,16 @@ enum SelectionHTML {
         return out
     }
 
+    private static func listItem(_ runs: [Run]) -> Item? {
+        guard let (level, marker, rest) = listParts(runs) else { return nil }
+        let number = marker.flatMap { Int($0.filter(\.isNumber)) }
+        return Item(level: level, ordered: number != nil, start: number, html: inline(rest))
+    }
+
     /// A list item is known by its paragraph style — the text hangs past the
     /// marker — rather than by the marker itself, which a selection can start
     /// part way through. What is left of the tab, marker, tab prefix is dropped.
-    private static func listItem(_ runs: [Run]) -> Item? {
+    static func listParts(_ runs: [Run]) -> (level: Int, marker: String?, rest: [Run])? {
         guard let style = runs.first?.attributes[.paragraphStyle] as? NSParagraphStyle,
               style.headIndent > style.firstLineHeadIndent
         else { return nil }
@@ -107,7 +114,7 @@ enum SelectionHTML {
             }
             if !run.text.isEmpty { rest.append(run) }
         }
-        return Item(level: level, ordered: marker?.first?.isNumber == true, html: inline(rest))
+        return (level, marker, rest)
     }
 
     private static func isMarker(_ text: Substring) -> Bool {
@@ -120,7 +127,8 @@ enum SelectionHTML {
     /// kind at the same level closes the list and opens another.
     private static func nested(_ items: [Item], from index: inout Int, level: Int) -> String {
         let tag = items[index].ordered ? "ol" : "ul"
-        var out = "<\(tag)>"
+        let start = items[index].start.flatMap { $0 == 1 ? nil : " start=\"\($0)\"" } ?? ""
+        var out = "<\(tag)\(start)>"
         while index < items.count, items[index].level >= level {
             let item = items[index]
             if item.level == level, (item.ordered ? "ol" : "ul") != tag {
@@ -154,8 +162,8 @@ enum SelectionHTML {
         }.joined()
     }
 
-    /// A semibold system font carries no bold trait, only a weight, and that is
-    /// what headings are drawn in.
+    /// Headings are drawn semibold, which is read by weight rather than trusted
+    /// to carry the bold trait.
     private static func isHeavy(_ font: NSFont?) -> Bool {
         guard let traits = font?.fontDescriptor.object(forKey: .traits) as? [NSFontDescriptor.TraitKey: Any],
               let weight = traits[.weight] as? CGFloat
