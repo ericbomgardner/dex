@@ -191,7 +191,9 @@ public final class HostClient: @unchecked Sendable {
             attempt = 0
             let held = queued
             queued = []
-            let hello = try? HostRequest.hello(id: nextRequestIDOnQueue(), launches: true).line()
+            let hello = try? HostRequest.hello(
+                id: nextRequestIDOnQueue(), launches: true
+            ).line()
             for line in held { write(line) }
             if let hello { write(hello) }
             return

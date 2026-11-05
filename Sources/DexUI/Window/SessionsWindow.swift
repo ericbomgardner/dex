@@ -141,13 +141,15 @@ struct SessionsWindowView: View {
     /// over it all the same: without one, the window cannot be moved by its
     /// right-hand half at all.
     private var detailColumn: some View {
-        paneColumn
-            .overlay(alignment: .top) {
-                if !barsUp {
-                    WindowChromeStrip(overContent: true)
-                        .frame(height: SessionsWindow.titlebarHeight)
+        HStack(spacing: 0) {
+            paneColumn
+                .overlay(alignment: .top) {
+                    if !barsUp {
+                        WindowChromeStrip(overContent: true)
+                            .frame(height: SessionsWindow.titlebarHeight)
+                    }
                 }
-            }
+        }
     }
 
     @ViewBuilder
@@ -196,17 +198,20 @@ struct SessionsWindowView: View {
     }
 
     private var detailMinWidth: CGFloat {
-        pane.isOpen ? SessionPaneView.minWidth : 0
+        var width = pane.isOpen ? SessionPaneView.minWidth : 0
+        return width
     }
 
     private var minWindowWidth: CGFloat {
-        pane.isOpen
+        var width = pane.isOpen
             ? SessionsWindow.listMinWidth + SessionPaneView.minWidth
             : SessionsWindow.minWidth
+        return width
     }
 
     private func growForPane(_ window: NSWindow) {
-        guard pane.isOpen else { return }
+        var grows = pane.isOpen
+        guard grows else { return }
         let wanted = minWindowWidth
         guard window.frame.width < wanted else { return }
 

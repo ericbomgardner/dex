@@ -44,6 +44,7 @@ export function launchEvent(launchId: string, request: LaunchRequest): Launch {
 /** Starts a session through the app and answers its key, or throws why it couldn't. */
 export type Launcher = (request: LaunchRequest) => Promise<string>;
 
+
 export function dexServer(parent: string, launch: Launcher, self: () => string | null) {
   const fleetFile = path.join(configDirectory(), SUPPORT_FOLDER, "fleet.json");
   const registryDirectory = path.join(configDirectory(), "sessions");
@@ -62,7 +63,10 @@ export function dexServer(parent: string, launch: Launcher, self: () => string |
   });
 }
 
-export function startSessionTool(parent: string, launch: Launcher) {
+export function startSessionTool(
+  parent: string,
+  launch: Launcher,
+) {
   return tool(
     "start_session",
     "Start a separate Dex session that works on its own and shows in Dex as its own row, where the user talks to it directly. " +
